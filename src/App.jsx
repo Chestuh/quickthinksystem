@@ -211,9 +211,23 @@ function App() {
   }
 
   const saveExam = async (examPayload) => {
-    if (examPayload.id) await api.updateExam(examPayload.id, examPayload)
-    else await api.createExam(examPayload)
-    await refreshData(session?.role === 'admin')
+    const savedExam = examPayload.id
+      ? await api.updateExam(examPayload.id, examPayload)
+      : await api.createExam(examPayload)
+
+    try {
+      await refreshData(session?.role === 'admin')
+    } catch (error) {
+      setData((current) => {
+        const alreadyListed = current.exams.some((exam) => exam.id === savedExam.id)
+        const exams = alreadyListed
+          ? current.exams.map((exam) => exam.id === savedExam.id ? savedExam : exam)
+          : [savedExam, ...current.exams]
+
+        return { ...current, exams }
+      })
+      setDataError(`Exam saved, but the latest data could not be loaded: ${error.message}`)
+    }
   }
 
   const deleteExam = async (examId) => {
