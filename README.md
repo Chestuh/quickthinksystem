@@ -44,7 +44,7 @@ Open the app at **http://localhost:5173**. The API runs at **http://127.0.0.1:80
 
 ### Deploy the full app to Vercel
 
-The root `vercel.json` deploys the React frontend and Laravel API as separate Vercel services. `/api/*` and `/up` go to the Laravel container; other paths go to the frontend. The frontend uses the same-origin `/api` path in production, so it does not need a localhost URL or a separate CORS origin.
+The root `vercel.json` deploys the React frontend and Laravel API as separate Vercel services. `/api/*` and `/up` go to the Laravel container; other paths go to the frontend, where a service-level SPA rewrite serves `index.html` for client-side routes such as `/register` and `/login`. The frontend uses the same-origin `/api` path in production, so it does not need a localhost URL or a separate CORS origin.
 
 Vercel's container filesystem is temporary, so production must use a persistent PostgreSQL database; do not use the checked-in SQLite database for live data. Add these environment variables to the Vercel project for **Production**, **Preview**, and **Development** as appropriate:
 
