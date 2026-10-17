@@ -4,6 +4,7 @@ use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 require __DIR__.'/../vendor/autoload.php';
 
@@ -18,7 +19,9 @@ if (! config('database.connections.pgsql_unpooled.url')) {
     throw new RuntimeException('DATABASE_URL_UNPOOLED is required for safe database setup.');
 }
 
-$connection = DB::connection('pgsql_unpooled');
+config(['database.default' => 'pgsql_unpooled']);
+
+$connection = DB::connection();
 $lockId = 2026101701;
 $locked = false;
 
@@ -32,6 +35,13 @@ try {
     if ($status !== 0) {
         throw new RuntimeException("Database migrations failed with exit code {$status}.");
     }
+
+    $missingTables = array_filter(['users', 'cache', 'cache_locks'], fn (string $table): bool => ! Schema::hasTable($table));
+    if ($missingTables !== []) {
+        throw new RuntimeException('Database migrations completed without required tables: '.implode(', ', $missingTables).'.');
+    }
+
+    fwrite(STDOUT, "Database migrations completed and required tables are available.\n");
 
     if (env('ADMIN_EMAIL') && env('ADMIN_PASSWORD') && ! User::where('role', 'admin')->exists()) {
         $status = Artisan::call('db:seed', [
