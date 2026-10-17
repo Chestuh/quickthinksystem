@@ -1,5 +1,27 @@
 const MAX_FILE_SIZE = 15 * 1024 * 1024
 
+function normalizeAnswerLetter(value) {
+  const cleaned = String(value ?? '').trim()
+  if (!cleaned) return ''
+
+  const match = cleaned.match(/^(?:option|choice)?\s*([A-D])(?:[.)])?(?:\s|$)/i)
+  return match ? match[1].toUpperCase() : ''
+}
+
+function collectAnswerKeyEntries(text) {
+  const entries = []
+  const matches = text.matchAll(/(\d{1,3})\s*(?:[.):-]|\s)\s*([A-D])\b/gi)
+
+  for (const match of matches) {
+    entries.push({
+      number: Number(match[1]),
+      letter: match[2].toUpperCase(),
+    })
+  }
+
+  return entries
+}
+
 export async function extractDocumentText(file) {
   if (file.size > MAX_FILE_SIZE) {
     throw new Error('The file is larger than the 15 MB import limit.')
@@ -87,18 +109,26 @@ export function parseQuestions(text) {
   let readingAnswerKey = false
 
   for (const line of lines) {
-    if (/^(?:answer\s*key|answers)\s*:?\s*$/i.test(line)) {
+    if (/^(?:answer\s*key|answers)\s*:??\s*(.*)$/i.test(line)) {
       readingAnswerKey = true
+      const trailingText = line.replace(/^(?:answer\s*key|answers)\s*:??\s*/i, '').trim()
+      for (const item of collectAnswerKeyEntries(trailingText)) {
+        answerKey.set(item.number, item.letter)
+      }
       continue
     }
 
-    const keyMatch = line.match(/^(\d{1,3})\s*[.)-:]?\s*([A-D])\s*$/i)
-    if (readingAnswerKey && keyMatch) {
-      answerKey.set(Number(keyMatch[1]), keyMatch[2].toUpperCase())
+    const keyEntries = collectAnswerKeyEntries(line)
+    if (readingAnswerKey && keyEntries.length) {
+      for (const item of keyEntries) {
+        answerKey.set(item.number, item.letter)
+      }
       continue
     }
 
-    if (readingAnswerKey && !/^\d/.test(line)) readingAnswerKey = false
+    if (readingAnswerKey && !/^\d/.test(line) && !/[A-D]\s*[.):-]/i.test(line)) {
+      readingAnswerKey = false
+    }
   }
 
   const blocks = []
@@ -106,13 +136,17 @@ export function parseQuestions(text) {
   let inAnswerKey = false
 
   for (const line of lines) {
-    if (/^(?:answer\s*key|answers)\s*:?\s*$/i.test(line)) {
+    if (/^(?:answer\s*key|answers)\s*:??\s*(.*)$/i.test(line)) {
       inAnswerKey = true
       continue
     }
 
-    if (inAnswerKey && /^\d{1,3}\s*[.)-:]?\s*[A-D]\s*$/i.test(line)) continue
-    if (inAnswerKey) inAnswerKey = false
+    if (inAnswerKey) {
+      if (collectAnswerKeyEntries(line).length || /^\d{1,3}\s*[.):-]?\s*[A-D]\s*$/i.test(line)) {
+        continue
+      }
+      inAnswerKey = false
+    }
 
     const questionMatch = line.match(/^(?:(?:question|q)\s*)?(\d{1,3})\s*[.):]\s*(.*)$/i)
     if (questionMatch) {
@@ -129,12 +163,10 @@ export function parseQuestions(text) {
 
     if (!current) continue
 
-    const answerMatch = line.match(/^(?:correct\s+)?answer\s*[:-]\s*(.+)$/i)
+    const answerMatch = line.match(/(?:^|\s)(?:correct\s+)?answer(?:\s+key)?(?:\s+is)?\s*[:.-]?\s*([A-D])(?:[.)])?/i)
     if (answerMatch) {
-      const answer = answerMatch[1].trim()
-      const letterMatch = answer.match(/^([A-D])(?:[.)])?(?:\s|$)/i)
-      current.answerLetter = letterMatch ? letterMatch[1].toUpperCase() : ''
-      current.answerText = answer
+      current.answerLetter = normalizeAnswerLetter(answerMatch[1])
+      current.answerText = answerMatch[1]
       continue
     }
 

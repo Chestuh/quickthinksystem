@@ -914,6 +914,18 @@ function ExamPage({ user, exams, dataLoading, onSaveExam, onDeleteExam }) {
   const handleSubmit = async (event) => {
     event.preventDefault()
     setSaveError('')
+
+    const invalidQuestion = form.questions.find((question) => {
+      const options = Array.isArray(question.options) ? question.options : []
+      const hasMissingAnswer = !question.answer || !options.includes(question.answer)
+      return !question.text?.trim() || options.length < 2 || options.some((option) => !String(option).trim()) || hasMissingAnswer
+    })
+
+    if (invalidQuestion) {
+      setSaveError('Each question must have text, at least two answer options, and a valid correct answer selected before saving.')
+      return
+    }
+
     try {
       await onSaveExam(form)
       setForm(createEmptyExam())
