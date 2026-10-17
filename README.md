@@ -46,7 +46,7 @@ Open the app at **http://localhost:5173**. The API runs at **http://127.0.0.1:80
 
 The root `vercel.json` deploys the React frontend and Laravel API as separate Vercel services. `/api/*` and `/up` go to the Laravel container; other paths go to the frontend. The frontend uses the same-origin `/api` path in production, so it does not need a localhost URL or a separate CORS origin.
 
-Vercel's container filesystem is temporary, so production must use a persistent MySQL database; do not use the checked-in SQLite database for live data. Add these environment variables to the Vercel project for **Production**, **Preview**, and **Development** as appropriate:
+Vercel's container filesystem is temporary, so production must use a persistent PostgreSQL database; do not use the checked-in SQLite database for live data. Add these environment variables to the Vercel project for **Production**, **Preview**, and **Development** as appropriate:
 
 | Variable | Value |
 | --- | --- |
@@ -56,13 +56,14 @@ Vercel's container filesystem is temporary, so production must use a persistent 
 | `APP_URL` | The deployed app's HTTPS URL |
 | `DB_CONNECTION` | `pgsql` |
 | `DATABASE_URL` | Neon pooled Postgres connection string, provided by the Vercel Marketplace integration |
+| `DATABASE_URL_UNPOOLED` | Neon direct Postgres connection string, provided by the Vercel Marketplace integration; used only to coordinate startup migrations |
 | `CACHE_STORE` | `database` |
 | `SESSION_DRIVER` | `array` |
 | `LOG_CHANNEL` | `stderr` |
 
-Set `ADMIN_EMAIL`, `ADMIN_PASSWORD` (at least 10 characters), and optionally `ADMIN_NAME` as private environment variables before the first deployment. The container runs pending migrations under a PostgreSQL advisory lock before starting Apache. If there is no administrator yet and those variables are set, it creates the initial administrator once; restarts do not reset an existing administrator's password. Remove `ADMIN_PASSWORD` from Vercel after initial setup if you do not want it available for future fresh database branches. Do not use the public demo credentials on a live deployment.
+Set `ADMIN_EMAIL`, `ADMIN_PASSWORD` (at least 10 characters), and optionally `ADMIN_NAME` as private environment variables before the first deployment. The container runs pending migrations under a PostgreSQL advisory lock held on the direct, unpooled connection before starting Apache. This ensures multiple Vercel instances cannot race while initializing the schema; normal application queries continue using the pooled connection. If there is no administrator yet and those variables are set, it creates the initial administrator once; restarts do not reset an existing administrator's password. Remove `ADMIN_PASSWORD` from Vercel after initial setup if you do not want it available for future fresh database branches. Do not use the public demo credentials on a live deployment.
 
-Install the Neon Postgres integration from the Vercel Marketplace and connect it to this project for Production and Preview; it provisions `DATABASE_URL`. A separate Neon branch is enabled for Preview deployments so they do not write to production data. Redeploy after connecting the integration and setting the administrator variables. Never run the demo-account seeder against production.
+Install the Neon Postgres integration from the Vercel Marketplace and connect it to this project for Production and Preview; it provisions `DATABASE_URL` and `DATABASE_URL_UNPOOLED`. A separate Neon branch is enabled for Preview deployments so they do not write to production data. Redeploy after connecting the integration and setting the administrator variables. Never run the demo-account seeder against production.
 
 Push the changes and redeploy the Vercel project. Confirm the API is reachable at `https://<your-domain>/up`. Do not set `VITE_API_URL` on Vercel unless the API is intentionally hosted at a different URL; if it is, set it to that API's full `/api` URL and redeploy because Vite embeds it at build time.
 

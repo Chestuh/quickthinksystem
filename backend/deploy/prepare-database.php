@@ -14,7 +14,11 @@ if (config('database.default') !== 'pgsql') {
     throw new RuntimeException('The Vercel backend requires PostgreSQL.');
 }
 
-$connection = DB::connection();
+if (! config('database.connections.pgsql_unpooled.url')) {
+    throw new RuntimeException('DATABASE_URL_UNPOOLED is required for safe database setup.');
+}
+
+$connection = DB::connection('pgsql_unpooled');
 $lockId = 2026101701;
 $locked = false;
 
