@@ -263,7 +263,7 @@ function App() {
         <div className="app-shell"><div className="message-box error">{loadError}</div></div>
       ) : (
         <AppShell
-          key={user?.id ?? 'guest'}
+          key={session?.id ?? 'guest'}
           user={session}
           data={data}
           dataLoading={dataLoading}
