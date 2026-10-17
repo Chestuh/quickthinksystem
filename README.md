@@ -42,9 +42,29 @@ The launcher prepares the local SQLite database, runs pending migrations, create
 
 Open the app at **http://localhost:5173**. The API runs at **http://127.0.0.1:8001**. Leave both server terminal windows open while using QuickThink; press **Ctrl+C** in a server window to stop it.
 
-### Deploy the frontend to Vercel
+### Deploy the full app to Vercel
 
-The root `vercel.json` rewrites frontend routes such as `/login` and `/register` to the React app entry page. Commit and push that file, then redeploy the Vercel project so direct links and page refreshes work.
+The root `vercel.json` deploys the React frontend and Laravel API as separate Vercel services. `/api/*` and `/up` go to the Laravel container; other paths go to the frontend. The frontend uses the same-origin `/api` path in production, so it does not need a localhost URL or a separate CORS origin.
+
+Vercel's container filesystem is temporary, so production must use a persistent MySQL database; do not use the checked-in SQLite database for live data. Add these environment variables to the Vercel project for **Production**, **Preview**, and **Development** as appropriate:
+
+| Variable | Value |
+| --- | --- |
+| `APP_ENV` | `production` |
+| `APP_DEBUG` | `false` |
+| `APP_KEY` | Generate with `php artisan key:generate --show` from `backend/`; keep the generated key private |
+| `APP_URL` | The deployed app's HTTPS URL |
+| `DB_CONNECTION` | `pgsql` |
+| `DATABASE_URL` | Neon pooled Postgres connection string, provided by the Vercel Marketplace integration |
+| `CACHE_STORE` | `database` |
+| `SESSION_DRIVER` | `array` |
+| `LOG_CHANNEL` | `stderr` |
+
+Set `ADMIN_EMAIL`, `ADMIN_PASSWORD` (at least 10 characters), and optionally `ADMIN_NAME` as private environment variables if you will create the first administrator with `AdminUserSeeder`. Do not use the public demo credentials on a live deployment.
+
+Install the Neon Postgres integration from the Vercel Marketplace and connect it to this project for Production and Preview; it provisions `DATABASE_URL`. Then redeploy so the Laravel container receives the database URL. Before first use, create the database schema by running `php artisan migrate --force` from `backend/` with `DB_CONNECTION=pgsql` and the same `DATABASE_URL` set in your terminal. To create the administrator, run `php artisan db:seed --class=AdminUserSeeder --force` once with the administrator variables set. Never run the demo-account seeder against production.
+
+Push the changes and redeploy the Vercel project. Confirm the API is reachable at `https://<your-domain>/up`. Do not set `VITE_API_URL` on Vercel unless the API is intentionally hosted at a different URL; if it is, set it to that API's full `/api` URL and redeploy because Vite embeds it at build time.
 
 ## Ready-to-use local test accounts
 

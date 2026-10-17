@@ -1,4 +1,7 @@
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/$/, '')
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? 'http://127.0.0.1:8001/api' : '/api')
+).replace(/\/$/, '')
 const TOKEN_KEY = 'quickthink-api-token'
 
 export class ApiError extends Error {
@@ -32,7 +35,7 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch {
-    throw new ApiError(`Could not connect to QuickThink API at ${API_URL}. Start the Laravel server and check VITE_API_URL.`, 0)
+    throw new ApiError(`Could not connect to QuickThink API at ${API_URL}. Check that the Laravel API is running and that VITE_API_URL is configured correctly.`, 0)
   }
 
   const payload = response.status === 204 ? null : await response.json().catch(() => null)
