@@ -20,4 +20,4 @@ RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/fra
 
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+CMD ["sh", "-c", "php deploy/prepare-database.php && exec apache2-foreground"]
