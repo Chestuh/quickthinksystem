@@ -395,6 +395,7 @@ function AppShell({ user, data, dataLoading, dataError, welcomeNotice, onDismiss
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={onLogin} onRegister={onRegister} />} />
+        <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage initialMode="register" onLogin={onLogin} onRegister={onRegister} />} />
         <Route path="/dashboard" element={user ? <DashboardPage user={user} data={data} dataLoading={dataLoading} /> : <Navigate to="/login" replace />} />
         <Route path="/exams" element={user ? <ExamPage user={user} exams={data.exams} dataLoading={dataLoading} onSaveExam={onSaveExam} onDeleteExam={onDeleteExam} /> : <Navigate to="/login" replace />} />
         <Route path="/announcements" element={user ? <AnnouncementsPage user={user} announcements={data.announcements} dataLoading={dataLoading} onSave={onSaveAnnouncement} onDelete={onDeleteAnnouncement} /> : <Navigate to="/login" replace />} />
@@ -422,7 +423,7 @@ function LandingPage() {
           </p>
 
           <div className="cta-row">
-            <a href="/login" className="primary-btn">Create account</a>
+            <a href="/register" className="primary-btn">Create account</a>
             <a href="/dashboard" className="secondary-btn">View Features</a>
           </div>
 
@@ -520,8 +521,8 @@ function LandingPage() {
   )
 }
 
-function LoginPage({ onLogin, onRegister }) {
-  const [mode, setMode] = useState('login')
+function LoginPage({ onLogin, onRegister, initialMode = 'login' }) {
+  const [mode, setMode] = useState(initialMode)
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [registerForm, setRegisterForm] = useState({ name: '', email: '', password: '' })
   const [message, setMessage] = useState('')

@@ -42,6 +42,10 @@ The launcher prepares the local SQLite database, runs pending migrations, create
 
 Open the app at **http://localhost:5173**. The API runs at **http://127.0.0.1:8001**. Leave both server terminal windows open while using QuickThink; press **Ctrl+C** in a server window to stop it.
 
+### Deploy the frontend to Vercel
+
+The root `vercel.json` rewrites frontend routes such as `/login` and `/register` to the React app entry page. Commit and push that file, then redeploy the Vercel project so direct links and page refreshes work.
+
 ## Ready-to-use local test accounts
 
 The startup script seeds these accounts into the local SQLite database:
