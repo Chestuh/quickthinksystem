@@ -14,7 +14,8 @@ export async function extractDocumentText(file) {
       import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
     ])
     pdfjsLib.GlobalWorkerOptions.workerSrc = workerModule.default
-    const document = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) })
+    const document = await loadingTask.promise
     const pages = []
 
     try {
@@ -44,7 +45,9 @@ export async function extractDocumentText(file) {
         pages.push(lines.join('\n'))
       }
     } finally {
-      await document.destroy()
+      if (typeof loadingTask.destroy === 'function') {
+        await loadingTask.destroy()
+      }
     }
 
     return pages.join('\n')
