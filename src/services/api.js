@@ -48,7 +48,12 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
     const validationMessage = payload?.errors
       ? Object.values(payload.errors).flat().join(' ')
       : ''
-    throw new ApiError(validationMessage || payload?.message || `Request failed (${response.status}).`, response.status)
+    const message = validationMessage || payload?.message || `Request failed (${response.status}).`
+    const requestId = response.status >= 500 ? response.headers.get('x-vercel-id') : null
+    const diagnostic = response.status >= 500
+      ? ` (HTTP ${response.status}${requestId ? `, Vercel request ID ${requestId}` : ''})`
+      : ''
+    throw new ApiError(`${message}${diagnostic}`, response.status)
   }
   return payload
 }

@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Attempt;
 use App\Models\Exam;
 use App\Models\User;
+use Closure;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 
 class ExamController extends Controller
@@ -33,7 +34,7 @@ class ExamController extends Controller
     public function store(Request $request): JsonResponse
     {
         $payload = $this->validateExam($request);
-        $exam = DB::transaction(function () use ($request, $payload): Exam {
+        $exam = $this->transactionWithRecovery(function () use ($request, $payload): Exam {
             $exam = Exam::create([
                 'created_by' => $request->user()->id,
                 'title' => $payload['title'],
@@ -68,7 +69,7 @@ class ExamController extends Controller
         $this->authorizeExam($request->user(), $exam);
         $payload = $this->validateExam($request, true);
 
-        DB::transaction(function () use ($exam, $payload): void {
+        $this->transactionWithRecovery(function () use ($exam, $payload): void {
             $attributes = [];
             foreach ([
                 'title' => 'title',
@@ -151,7 +152,7 @@ class ExamController extends Controller
             'answers.*' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        return DB::transaction(function () use ($request, $exam, $validated): JsonResponse {
+        return $this->transactionWithRecovery(function () use ($request, $exam, $validated): JsonResponse {
             $attempt = Attempt::where('exam_id', $exam->id)
                 ->where('user_id', $request->user()->id)
                 ->lockForUpdate()
@@ -178,7 +179,7 @@ class ExamController extends Controller
         ]);
 
         $answers = $validated['answers'];
-        $attempt = DB::transaction(function () use ($request, $exam, $answers): Attempt {
+        $attempt = $this->transactionWithRecovery(function () use ($request, $exam, $answers): Attempt {
             $attempt = Attempt::where('exam_id', $exam->id)
                 ->where('user_id', $request->user()->id)
                 ->lockForUpdate()
@@ -218,6 +219,24 @@ class ExamController extends Controller
             'percentage' => (int) round(($attempt->score / $attempt->max_score) * 100),
             'submittedAt' => $attempt->submitted_at->toIso8601String(),
         ], 201);
+    }
+
+    private function transactionWithRecovery(Closure $callback): mixed
+    {
+        $connectionName = DB::getDefaultConnection();
+        $connection = DB::connection($connectionName);
+
+        try {
+            return $connection->transaction($callback);
+        } catch (QueryException $error) {
+            if ($connection->getDriverName() !== 'pgsql' || $error->getCode() !== '25P02') {
+                throw $error;
+            }
+
+            DB::purge($connectionName);
+
+            return DB::connection($connectionName)->transaction($callback);
+        }
     }
 
     private function validateAnswers(Exam $exam, array $answers): void

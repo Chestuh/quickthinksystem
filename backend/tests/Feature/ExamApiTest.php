@@ -11,6 +11,37 @@ class ExamApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_admin_can_create_an_exam_with_twenty_questions(): void
+    {
+        $admin = User::create([
+            'name' => 'Admin',
+            'email' => 'admin@example.test',
+            'password' => 'not-a-real-password',
+            'role' => 'admin',
+        ]);
+        $questions = array_map(
+            fn (int $number): array => [
+                'text' => "Question {$number}",
+                'options' => ['Option A', 'Option B', 'Option C', 'Option D'],
+                'answer' => 'Option A',
+            ],
+            range(1, 20),
+        );
+
+        $response = $this->withToken($admin->createToken('test')->plainTextToken)
+            ->postJson('/api/exams', [
+                'title' => 'Imported exam',
+                'subject' => 'Mathematics',
+                'durationMinutes' => 45,
+                'date' => now()->toDateString(),
+                'status' => 'Draft',
+                'questions' => $questions,
+            ]);
+
+        $response->assertCreated()->assertJsonCount(20, 'questions');
+        $this->assertDatabaseCount('questions', 20);
+    }
+
     public function test_student_can_submit_once_and_receives_server_graded_result(): void
     {
         $teacher = User::create([
