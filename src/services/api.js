@@ -3,6 +3,7 @@ const API_URL = (
   (import.meta.env.DEV ? 'http://127.0.0.1:8001/api' : '/api')
 ).replace(/\/$/, '')
 const TOKEN_KEY = 'quickthink-api-token'
+export const AUTHENTICATION_EXPIRED_EVENT = 'quickthink:authentication-expired'
 
 export class ApiError extends Error {
   constructor(message, status) {
@@ -40,7 +41,10 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
 
   const payload = response.status === 204 ? null : await response.json().catch(() => null)
   if (!response.ok) {
-    if (response.status === 401) setToken(null)
+    if (response.status === 401 && auth) {
+      setToken(null)
+      window.dispatchEvent(new Event(AUTHENTICATION_EXPIRED_EVENT))
+    }
     const validationMessage = payload?.errors
       ? Object.values(payload.errors).flat().join(' ')
       : ''
@@ -77,8 +81,12 @@ export const api = {
   },
 
   async logout() {
+    if (!getToken()) return
+
     try {
       await request('/logout', { method: 'POST' })
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 401)) throw error
     } finally {
       setToken(null)
     }

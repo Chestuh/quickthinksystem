@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
-import { api, ApiError, getToken, setToken } from './services/api.js'
+import { api, ApiError, AUTHENTICATION_EXPIRED_EVENT, getToken, setToken } from './services/api.js'
 import { extractDocumentText, parseQuestions } from './services/questionImport.js'
 import './App.css'
 
@@ -133,6 +133,20 @@ function App() {
   }, [])
 
   useEffect(() => {
+    const handleAuthenticationExpired = () => {
+      dataRequestId.current += 1
+      setSession(null)
+      setData({ exams: [], results: [], announcements: [], users: [], signInActivity: [] })
+      setDataLoading(false)
+      setDataError('')
+      setWelcomeNotice('Your session expired. Please sign in again.')
+    }
+
+    window.addEventListener(AUTHENTICATION_EXPIRED_EVENT, handleAuthenticationExpired)
+    return () => window.removeEventListener(AUTHENTICATION_EXPIRED_EVENT, handleAuthenticationExpired)
+  }, [])
+
+  useEffect(() => {
     if (!getToken()) return
 
     let active = true
@@ -249,6 +263,7 @@ function App() {
         <div className="app-shell"><div className="message-box error">{loadError}</div></div>
       ) : (
         <AppShell
+          key={user?.id ?? 'guest'}
           user={session}
           data={data}
           dataLoading={dataLoading}
